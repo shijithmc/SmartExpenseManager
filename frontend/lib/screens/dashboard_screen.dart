@@ -4,8 +4,10 @@ import '../providers/expense_provider.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/summary_chart.dart';
 import '../widgets/projected_spend_card.dart';
+import '../widgets/spending_trend_chart.dart';
 import '../widgets/expense_card.dart';
 import 'add_expense_screen.dart';
+import 'edit_expense_screen.dart';
 import 'expense_list_screen.dart';
 import 'profile_screen.dart';
 
@@ -23,7 +25,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ExpenseProvider>().loadExpenses();
+      final provider = context.read<ExpenseProvider>();
+      provider.loadExpenses();
+      provider.loadBudget();
     });
   }
 
@@ -87,8 +91,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.cloud_off,
-                      size: 56, color: Colors.grey.shade400),
+                  Icon(Icons.cloud_off, size: 56, color: Colors.grey.shade400),
                   const SizedBox(height: 16),
                   const Text('Could not load expenses'),
                   const SizedBox(height: 12),
@@ -108,7 +111,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              // Compact app bar with greeting
               SliverAppBar(
                 floating: true,
                 title: Column(
@@ -128,11 +130,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   IconButton(
                     icon: const Icon(Icons.refresh),
                     onPressed: () => provider.loadExpenses(),
-                    tooltip: 'Refresh',
                   ),
                 ],
               ),
-
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 sliver: SliverList(
@@ -148,38 +148,60 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       daysInMonth: provider.daysInMonth,
                     ),
 
+                    // Budget progress (if budget set)
+                    if (provider.monthlyBudget > 0) ...[
+                      const SizedBox(height: 12),
+                      _BudgetCard(
+                        budget: provider.monthlyBudget,
+                        spent: provider.totalThisMonth,
+                        remaining: provider.budgetRemaining,
+                        progress: provider.budgetProgress,
+                        isOver: provider.isOverBudget,
+                      ),
+                    ],
+
                     const SizedBox(height: 20),
 
-                    // Quick stats row
+                    // Quick stats
                     Row(
                       children: [
                         _QuickStat(
-                          icon: Icons.receipt_outlined,
-                          label: 'Transactions',
-                          value: '${provider.monthlyExpenses.length}',
-                          color: const Color(0xFF6366F1),
-                        ),
+                            icon: Icons.receipt_outlined,
+                            label: 'Transactions',
+                            value: '${provider.monthlyExpenses.length}',
+                            color: const Color(0xFF6366F1)),
                         const SizedBox(width: 8),
                         _QuickStat(
-                          icon: Icons.category_outlined,
-                          label: 'Categories',
-                          value: '${provider.categoriesUsedThisMonth}',
-                          color: const Color(0xFF4ECDC4),
-                        ),
+                            icon: Icons.category_outlined,
+                            label: 'Categories',
+                            value: '${provider.categoriesUsedThisMonth}',
+                            color: const Color(0xFF4ECDC4)),
                         const SizedBox(width: 8),
                         _QuickStat(
-                          icon: Icons.arrow_upward,
-                          label: 'Biggest',
-                          value:
-                              '\$${provider.biggestExpense.toStringAsFixed(0)}',
-                          color: const Color(0xFFFF6B6B),
-                        ),
+                            icon: Icons.arrow_upward,
+                            label: 'Biggest',
+                            value:
+                                '\$${provider.biggestExpense.toStringAsFixed(0)}',
+                            color: const Color(0xFFFF6B6B)),
                       ],
                     ),
 
                     const SizedBox(height: 24),
 
-                    // Spending chart
+                    // 7-day spending trend
+                    if (provider.expenses.isNotEmpty) ...[
+                      Text('Last 7 Days',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 12),
+                      SpendingTrendChart(
+                          last7DaysSpending: provider.last7DaysSpending),
+                      const SizedBox(height: 24),
+                    ],
+
+                    // Category chart
                     if (provider.expensesByCategory.isNotEmpty) ...[
                       Text('Spending by Category',
                           style: Theme.of(context)
@@ -192,7 +214,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       const SizedBox(height: 24),
                     ],
 
-                    // Recent expenses header
+                    // Recent expenses
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -214,7 +236,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
 
-              // Recent expenses list
+              // Recent expenses list (tappable to edit)
               if (provider.expenses.isEmpty)
                 SliverPadding(
                   padding: const EdgeInsets.all(32),
@@ -226,7 +248,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               size: 48, color: Colors.grey.shade300),
                           const SizedBox(height: 12),
                           Text('No expenses yet',
-                              style: TextStyle(color: Colors.grey.shade500)),
+                              style:
+                                  TextStyle(color: Colors.grey.shade500)),
                           const SizedBox(height: 4),
                           Text('Tap + to add your first expense',
                               style: TextStyle(
@@ -241,18 +264,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
-                      if (index >= provider.expenses.length ||
-                          index >= 5) {
+                      if (index >= provider.expenses.length || index >= 5) {
                         return null;
                       }
-                      return ExpenseCard(expense: provider.expenses[index]);
+                      return GestureDetector(
+                        onTap: () async {
+                          final result = await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => EditExpenseScreen(
+                                  expense: provider.expenses[index]),
+                            ),
+                          );
+                          if (result == true && mounted) {
+                            provider.loadExpenses();
+                          }
+                        },
+                        child: ExpenseCard(
+                            expense: provider.expenses[index]),
+                      );
                     },
-                    childCount:
-                        provider.expenses.length > 5 ? 5 : provider.expenses.length,
+                    childCount: provider.expenses.length > 5
+                        ? 5
+                        : provider.expenses.length,
                   ),
                 ),
-
-              // Bottom padding for FAB
               const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
           ),
@@ -266,6 +301,74 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
+  }
+}
+
+class _BudgetCard extends StatelessWidget {
+  final double budget;
+  final double spent;
+  final double remaining;
+  final double progress;
+  final bool isOver;
+
+  const _BudgetCard({
+    required this.budget,
+    required this.spent,
+    required this.remaining,
+    required this.progress,
+    required this.isOver,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isOver ? Colors.red : const Color(0xFF6366F1);
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: color.withAlpha(40)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Monthly Budget',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: color)),
+                Text('\$${budget.toStringAsFixed(0)}',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: color)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress.clamp(0.0, 1.0),
+                minHeight: 6,
+                backgroundColor: color.withAlpha(25),
+                valueColor: AlwaysStoppedAnimation<Color>(color),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              isOver
+                  ? 'Over budget by \$${(spent - budget).toStringAsFixed(2)}'
+                  : '\$${remaining.toStringAsFixed(2)} remaining',
+              style: TextStyle(fontSize: 12, color: color),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

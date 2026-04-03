@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/expense.dart';
 import '../services/expense_service.dart';
 
@@ -7,11 +8,13 @@ class ExpenseProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   Map<String, dynamic>? _summary;
+  double _monthlyBudget = 0;
 
   List<Expense> get expenses => _expenses;
   bool get isLoading => _isLoading;
   String? get error => _error;
   Map<String, dynamic>? get summary => _summary;
+  double get monthlyBudget => _monthlyBudget;
 
   double get totalExpenses => _expenses.fold(0, (sum, e) => sum + e.amount);
 
@@ -35,10 +38,7 @@ class ExpenseProvider extends ChangeNotifier {
   double get totalThisMonth =>
       monthlyExpenses.fold(0, (sum, e) => sum + e.amount);
 
-  int get daysElapsed {
-    final now = DateTime.now();
-    return now.day;
-  }
+  int get daysElapsed => DateTime.now().day;
 
   int get daysInMonth {
     final now = DateTime.now();
@@ -54,13 +54,53 @@ class ExpenseProvider extends ChangeNotifier {
 
   double get biggestExpense {
     if (monthlyExpenses.isEmpty) return 0;
-    return monthlyExpenses
-        .map((e) => e.amount)
-        .reduce((a, b) => a > b ? a : b);
+    return monthlyExpenses.map((e) => e.amount).reduce((a, b) => a > b ? a : b);
   }
 
-  int get categoriesUsedThisMonth {
-    return monthlyExpenses.map((e) => e.category).toSet().length;
+  int get categoriesUsedThisMonth =>
+      monthlyExpenses.map((e) => e.category).toSet().length;
+
+  double get budgetRemaining =>
+      _monthlyBudget > 0 ? _monthlyBudget - totalThisMonth : 0;
+
+  double get budgetProgress =>
+      _monthlyBudget > 0 ? (totalThisMonth / _monthlyBudget).clamp(0.0, 1.5) : 0;
+
+  bool get isOverBudget => _monthlyBudget > 0 && totalThisMonth > _monthlyBudget;
+
+  // --- Last 7 days spending ---
+
+  Map<String, double> get last7DaysSpending {
+    final map = <String, double>{};
+    final now = DateTime.now();
+    for (var i = 6; i >= 0; i--) {
+      final day = now.subtract(Duration(days: i));
+      final key = '${day.month}/${day.day}';
+      map[key] = 0;
+    }
+    for (var e in _expenses) {
+      final diff = now.difference(e.date).inDays;
+      if (diff >= 0 && diff < 7) {
+        final key = '${e.date.month}/${e.date.day}';
+        map[key] = (map[key] ?? 0) + e.amount;
+      }
+    }
+    return map;
+  }
+
+  // --- Budget ---
+
+  Future<void> loadBudget() async {
+    final prefs = await SharedPreferences.getInstance();
+    _monthlyBudget = prefs.getDouble('monthly_budget') ?? 0;
+    notifyListeners();
+  }
+
+  Future<void> setBudget(double amount) async {
+    _monthlyBudget = amount;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('monthly_budget', amount);
+    notifyListeners();
   }
 
   // --- Data loading ---
@@ -120,6 +160,21 @@ class ExpenseProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> updateExpense(String expenseId, Map<String, dynamic> updates) async {
+    try {
+      final expense = await ExpenseService.updateExpense(expenseId, updates);
+      final idx = _expenses.indexWhere((e) => e.expenseId == expenseId);
+      if (idx != -1) _expenses[idx] = expense;
+      _expenses.sort((a, b) => b.date.compareTo(a.date));
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> deleteExpense(String expenseId) async {
     try {
       await ExpenseService.deleteExpense(expenseId);
@@ -131,5 +186,19 @@ class ExpenseProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  // --- CSV Export ---
+
+  String exportToCsv() {
+    final buf = StringBuffer();
+    buf.writeln('Date,Description,Category,Amount,Notes,AI Categorized');
+    for (var e in _expenses) {
+      final desc = e.description.replaceAll(',', ';');
+      final notes = (e.notes ?? '').replaceAll(',', ';');
+      buf.writeln(
+          '${e.date.toIso8601String().split('T')[0]},$desc,${e.category},${e.amount.toStringAsFixed(2)},$notes,${e.aiCategorized}');
+    }
+    return buf.toString();
   }
 }

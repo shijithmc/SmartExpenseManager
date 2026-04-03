@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
 import '../models/category.dart';
 import '../widgets/expense_card.dart';
+import 'edit_expense_screen.dart';
 
 class ExpenseListScreen extends StatefulWidget {
   const ExpenseListScreen({super.key});
@@ -13,23 +14,67 @@ class ExpenseListScreen extends StatefulWidget {
 
 class _ExpenseListScreenState extends State<ExpenseListScreen> {
   String? _filterCategory;
+  String _searchQuery = '';
+  final _searchController = TextEditingController();
+  bool _showSearch = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<ExpenseProvider>(
       builder: (context, provider, _) {
-        final filtered = _filterCategory == null
+        var filtered = _filterCategory == null
             ? provider.expenses
             : provider.expenses
                 .where((e) => e.category == _filterCategory)
                 .toList();
 
+        if (_searchQuery.isNotEmpty) {
+          final q = _searchQuery.toLowerCase();
+          filtered = filtered
+              .where((e) =>
+                  e.description.toLowerCase().contains(q) ||
+                  e.category.toLowerCase().contains(q) ||
+                  e.amount.toStringAsFixed(2).contains(q) ||
+                  (e.notes ?? '').toLowerCase().contains(q))
+              .toList();
+        }
+
         return CustomScrollView(
           slivers: [
             SliverAppBar(
               floating: true,
-              title: Text('Expenses (${filtered.length})',
-                  style: const TextStyle(fontSize: 18)),
+              title: _showSearch
+                  ? TextField(
+                      controller: _searchController,
+                      autofocus: true,
+                      decoration: const InputDecoration(
+                        hintText: 'Search expenses...',
+                        border: InputBorder.none,
+                      ),
+                      onChanged: (v) => setState(() => _searchQuery = v),
+                    )
+                  : Text('Expenses (${filtered.length})',
+                      style: const TextStyle(fontSize: 18)),
+              actions: [
+                IconButton(
+                  icon: Icon(_showSearch ? Icons.close : Icons.search),
+                  onPressed: () {
+                    setState(() {
+                      _showSearch = !_showSearch;
+                      if (!_showSearch) {
+                        _searchQuery = '';
+                        _searchController.clear();
+                      }
+                    });
+                  },
+                ),
+              ],
             ),
             SliverToBoxAdapter(
               child: Padding(
@@ -73,7 +118,10 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
                       Icon(Icons.search_off,
                           size: 48, color: Colors.grey.shade300),
                       const SizedBox(height: 12),
-                      Text('No expenses found',
+                      Text(
+                          _searchQuery.isNotEmpty
+                              ? 'No results for "$_searchQuery"'
+                              : 'No expenses found',
                           style: TextStyle(color: Colors.grey.shade500)),
                     ],
                   ),
@@ -96,58 +144,35 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
                           color: Colors.red.shade50,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Icon(Icons.delete,
-                            color: Colors.red.shade400),
+                        child:
+                            Icon(Icons.delete, color: Colors.red.shade400),
                       ),
-                      confirmDismiss: (_) => showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('Delete Expense'),
-                          content: const Text('Delete this expense?'),
-                          actions: [
-                            TextButton(
-                                onPressed: () =>
-                                    Navigator.pop(ctx, false),
-                                child: const Text('Cancel')),
-                            TextButton(
-                                onPressed: () =>
-                                    Navigator.pop(ctx, true),
-                                child: const Text('Delete',
-                                    style:
-                                        TextStyle(color: Colors.red))),
-                          ],
-                        ),
-                      ),
-                      onDismissed: (_) {
-                        provider.deleteExpense(expense.expenseId);
-                      },
-                      child: ExpenseCard(
-                        expense: expense,
-                        onDelete: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('Delete Expense'),
-                              content:
-                                  const Text('Delete this expense?'),
-                              actions: [
-                                TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(ctx, false),
-                                    child: const Text('Cancel')),
-                                TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(ctx, true),
-                                    child: const Text('Delete',
-                                        style: TextStyle(
-                                            color: Colors.red))),
-                              ],
+                      confirmDismiss: (_) => _confirmDelete(context),
+                      onDismissed: (_) =>
+                          provider.deleteExpense(expense.expenseId),
+                      child: GestureDetector(
+                        onTap: () async {
+                          final result =
+                              await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  EditExpenseScreen(expense: expense),
                             ),
                           );
-                          if (confirm == true) {
-                            provider.deleteExpense(expense.expenseId);
+                          if (result == true && context.mounted) {
+                            provider.loadExpenses();
                           }
                         },
+                        child: ExpenseCard(
+                          expense: expense,
+                          onDelete: () async {
+                            final confirm =
+                                await _confirmDelete(context);
+                            if (confirm == true) {
+                              provider.deleteExpense(expense.expenseId);
+                            }
+                          },
+                        ),
                       ),
                     );
                   },
@@ -158,6 +183,25 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
           ],
         );
       },
+    );
+  }
+
+  Future<bool?> _confirmDelete(BuildContext context) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Expense'),
+        content: const Text('Delete this expense?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child:
+                  const Text('Delete', style: TextStyle(color: Colors.red))),
+        ],
+      ),
     );
   }
 }

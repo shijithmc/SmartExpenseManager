@@ -31,7 +31,7 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _error = e.toString();
+      _error = e.toString().replaceFirst('Exception: ', '');
       _isLoading = false;
       notifyListeners();
       return false;
@@ -49,7 +49,45 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _error = e.toString();
+      _error = e.toString().replaceFirst('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> requestOtp(String email) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final result = await AuthService.requestOtp(email);
+      _isLoading = false;
+      notifyListeners();
+      return result;
+    } catch (e) {
+      _error = e.toString().replaceFirst('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Future<bool> verifyOtp(String email, String code) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await AuthService.verifyOtp(email, code);
+      _isAuthenticated = true;
+      _email = email;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString().replaceFirst('Exception: ', '');
       _isLoading = false;
       notifyListeners();
       return false;

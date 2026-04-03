@@ -1,6 +1,5 @@
 using System.Text;
 using Amazon.DynamoDBv2;
-using Amazon.CognitoIdentityProvider;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using SmartExpenseManager.Api.Middleware;
@@ -11,7 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add AWS Lambda hosting support
 builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
 
-// Add AWS services
+// Add AWS DynamoDB
 builder.Services.AddSingleton<IAmazonDynamoDB>(sp =>
 {
     var config = new AmazonDynamoDBConfig
@@ -22,25 +21,13 @@ builder.Services.AddSingleton<IAmazonDynamoDB>(sp =>
     return new AmazonDynamoDBClient(config);
 });
 
-builder.Services.AddSingleton<IAmazonCognitoIdentityProvider>(sp =>
-{
-    var config = new AmazonCognitoIdentityProviderConfig
-    {
-        RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(
-            builder.Configuration["AWS:Region"] ?? "us-east-1")
-    };
-    return new AmazonCognitoIdentityProviderClient(config);
-});
-
 // Add application services
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IDynamoDbService, DynamoDbService>();
 builder.Services.AddScoped<IAICategorizeService, AICategorizeService>();
+builder.Services.AddScoped<IUserService, UserService>();
 
-// JWT Authentication - support both Cognito and demo tokens
-var cognitoRegion = builder.Configuration["AWS:Region"] ?? "us-east-1";
-var cognitoUserPoolId = builder.Configuration["AWS:Cognito:UserPoolId"] ?? "";
-var cognitoAuthority = $"https://cognito-idp.{cognitoRegion}.amazonaws.com/{cognitoUserPoolId}";
+// JWT Authentication
 var jwtSigningKey = builder.Configuration["Jwt:SigningKey"] ?? "";
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "SmartExpenseManager";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "SmartExpenseManager";
@@ -48,32 +35,15 @@ var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "SmartExpenseManager"
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        // Support both Cognito and self-signed demo tokens
+        options.RequireHttpsMetadata = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
-            ValidIssuers = [cognitoAuthority, jwtIssuer],
+            ValidIssuer = jwtIssuer,
             ValidateAudience = false,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSigningKey))
-        };
-
-        // For Cognito tokens, also try OIDC discovery
-        options.Authority = cognitoAuthority;
-        options.RequireHttpsMetadata = false;
-
-        options.Events = new JwtBearerEvents
-        {
-            OnAuthenticationFailed = context =>
-            {
-                // If Cognito validation fails, try local key validation
-                if (context.Exception is SecurityTokenSignatureKeyNotFoundException)
-                {
-                    context.NoResult();
-                }
-                return Task.CompletedTask;
-            }
         };
     });
 

@@ -1,11 +1,10 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Amazon.CognitoIdentityProvider;
-using Amazon.CognitoIdentityProvider.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using SmartExpenseManager.Api.Models;
+using SmartExpenseManager.Api.Services;
 
 namespace SmartExpenseManager.Api.Controllers;
 
@@ -13,70 +12,29 @@ namespace SmartExpenseManager.Api.Controllers;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
-    private readonly IAmazonCognitoIdentityProvider _cognitoClient;
+    private readonly IUserService _userService;
     private readonly IConfiguration _configuration;
     private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IAmazonCognitoIdentityProvider cognitoClient, IConfiguration configuration, ILogger<AuthController> logger)
+    public AuthController(IUserService userService, IConfiguration configuration, ILogger<AuthController> logger)
     {
-        _cognitoClient = cognitoClient;
+        _userService = userService;
         _configuration = configuration;
         _logger = logger;
     }
 
     [HttpPost("signup")]
-    public async Task<IActionResult> SignUp([FromBody] Models.SignUpRequest request)
+    public async Task<IActionResult> SignUp([FromBody] SignUpRequest request)
     {
         if (!ModelState.IsValid) return ValidationProblem();
 
-        try
-        {
-            var clientId = _configuration["AWS:Cognito:ClientId"];
+        var (success, error) = await _userService.SignUpAsync(
+            request.Email, request.Password, request.Name);
 
-            var cognitoSignUpRequest = new Amazon.CognitoIdentityProvider.Model.SignUpRequest
-            {
-                ClientId = clientId,
-                Username = request.Email,
-                Password = request.Password,
-                UserAttributes =
-                [
-                    new AttributeType { Name = "email", Value = request.Email },
-                    new AttributeType { Name = "name", Value = request.Name }
-                ]
-            };
+        if (!success)
+            return BadRequest(new { error });
 
-            var response = await _cognitoClient.SignUpAsync(cognitoSignUpRequest);
-            return Ok(new { message = "User registered. Please check email for confirmation code.", userId = response.UserSub });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Sign up failed for {Email}", request.Email);
-            return BadRequest(new { error = "Registration failed. Please try again." });
-        }
-    }
-
-    [HttpPost("confirm")]
-    public async Task<IActionResult> ConfirmSignUp([FromBody] Models.ConfirmSignUpRequest request)
-    {
-        if (!ModelState.IsValid) return ValidationProblem();
-
-        try
-        {
-            var clientId = _configuration["AWS:Cognito:ClientId"];
-            await _cognitoClient.ConfirmSignUpAsync(new Amazon.CognitoIdentityProvider.Model.ConfirmSignUpRequest
-            {
-                ClientId = clientId,
-                Username = request.Email,
-                ConfirmationCode = request.ConfirmationCode
-            });
-
-            return Ok(new { message = "Email confirmed successfully" });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Confirm sign up failed for {Email}", request.Email);
-            return BadRequest(new { error = "Confirmation failed. Please check your code and try again." });
-        }
+        return Ok(new { message = "Account created successfully! You can now sign in." });
     }
 
     [HttpPost("signin")]
@@ -84,68 +42,65 @@ public class AuthController : ControllerBase
     {
         if (!ModelState.IsValid) return ValidationProblem();
 
-        // Demo user login
+        // Demo user login (MC/MC)
         var demoUsername = _configuration["DemoUser:Username"];
         var demoPassword = _configuration["DemoUser:Password"];
-
         if (request.Email == demoUsername && request.Password == demoPassword)
-        {
-            var token = GenerateDemoJwt(demoUsername);
-            return Ok(new AuthResponse
-            {
-                Token = token,
-                RefreshToken = "demo-refresh-token",
-                UserId = "demo-user-mc",
-                Email = demoUsername
-            });
-        }
+            return Ok(GenerateAuthResponse("demo-user-mc", demoUsername!));
 
-        // Cognito login
-        try
-        {
-            var clientId = _configuration["AWS:Cognito:ClientId"];
-            var userPoolId = _configuration["AWS:Cognito:UserPoolId"];
+        // Dev user login (dev/dev)
+        if (request.Email == "dev" && request.Password == "dev")
+            return Ok(GenerateAuthResponse("dev-user", "dev@smartexpense.local"));
 
-            if (string.IsNullOrEmpty(clientId) || clientId == "YOUR_CLIENT_ID")
-                return Unauthorized(new { error = "Invalid credentials" });
+        // DynamoDB user login
+        var (valid, userId) = await _userService.ValidatePasswordAsync(request.Email, request.Password);
+        if (!valid)
+            return Unauthorized(new { error = "Invalid email or password" });
 
-            var authRequest = new AdminInitiateAuthRequest
-            {
-                UserPoolId = userPoolId,
-                ClientId = clientId,
-                AuthFlow = AuthFlowType.ADMIN_USER_PASSWORD_AUTH,
-                AuthParameters = new Dictionary<string, string>
-                {
-                    { "USERNAME", request.Email },
-                    { "PASSWORD", request.Password }
-                }
-            };
-
-            var response = await _cognitoClient.AdminInitiateAuthAsync(authRequest);
-            return Ok(new AuthResponse
-            {
-                Token = response.AuthenticationResult.IdToken,
-                RefreshToken = response.AuthenticationResult.RefreshToken,
-                UserId = request.Email,
-                Email = request.Email
-            });
-        }
-        catch (NotAuthorizedException)
-        {
-            return Unauthorized(new { error = "Invalid credentials" });
-        }
-        catch (UserNotFoundException)
-        {
-            return Unauthorized(new { error = "Invalid credentials" });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Sign in failed for {Email}", request.Email);
-            return Unauthorized(new { error = "Invalid credentials" });
-        }
+        return Ok(GenerateAuthResponse(userId!, request.Email));
     }
 
-    private string GenerateDemoJwt(string username)
+    [HttpPost("request-otp")]
+    public async Task<IActionResult> RequestOtp([FromBody] OtpRequest request)
+    {
+        if (!ModelState.IsValid) return ValidationProblem();
+
+        var (code, error) = await _userService.GenerateOtpAsync(request.Email);
+        if (!string.IsNullOrEmpty(error))
+            return BadRequest(new { error });
+
+        // In production, send via email/SMS. For demo, return in response.
+        return Ok(new
+        {
+            message = "OTP sent successfully",
+            otp = code // Remove this in production — only for demo
+        });
+    }
+
+    [HttpPost("verify-otp")]
+    public async Task<IActionResult> VerifyOtp([FromBody] OtpVerifyRequest request)
+    {
+        if (!ModelState.IsValid) return ValidationProblem();
+
+        var (valid, userId) = await _userService.VerifyOtpAsync(request.Email, request.Code);
+        if (!valid)
+            return Unauthorized(new { error = "Invalid or expired OTP code" });
+
+        return Ok(GenerateAuthResponse(userId!, request.Email));
+    }
+
+    private AuthResponse GenerateAuthResponse(string userId, string email)
+    {
+        return new AuthResponse
+        {
+            Token = GenerateJwt(userId, email),
+            RefreshToken = Guid.NewGuid().ToString(),
+            UserId = userId,
+            Email = email
+        };
+    }
+
+    private string GenerateJwt(string userId, string email)
     {
         var signingKey = _configuration["Jwt:SigningKey"]!;
         var issuer = _configuration["Jwt:Issuer"];
@@ -156,10 +111,9 @@ public class AuthController : ControllerBase
 
         var claims = new[]
         {
-            new Claim(JwtRegisteredClaimNames.Sub, "demo-user-mc"),
-            new Claim(JwtRegisteredClaimNames.Email, username),
-            new Claim(ClaimTypes.NameIdentifier, "demo-user-mc"),
-            new Claim("name", "MC Demo User"),
+            new Claim(JwtRegisteredClaimNames.Sub, userId),
+            new Claim(JwtRegisteredClaimNames.Email, email),
+            new Claim(ClaimTypes.NameIdentifier, userId),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 

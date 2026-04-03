@@ -26,27 +26,32 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
 
         return CustomScrollView(
           slivers: [
-            SliverAppBar.large(title: const Text('All Expenses')),
+            SliverAppBar(
+              floating: true,
+              title: Text('Expenses (${filtered.length})',
+                  style: const TextStyle(fontSize: 18)),
+            ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      FilterChip(
-                        label: const Text('All'),
+                      _FilterChip(
+                        label: 'All',
                         selected: _filterCategory == null,
                         onSelected: (_) =>
                             setState(() => _filterCategory = null),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       ...ExpenseCategory.defaults.map((cat) => Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: FilterChip(
-                              label: Text(cat.name),
+                            padding: const EdgeInsets.only(right: 6),
+                            child: _FilterChip(
+                              label: cat.name,
                               selected: _filterCategory == cat.name,
-                              selectedColor: cat.color.withAlpha(76),
+                              color: cat.color,
                               onSelected: (_) => setState(() =>
                                   _filterCategory =
                                       _filterCategory == cat.name
@@ -60,41 +65,90 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
               ),
             ),
             if (filtered.isEmpty)
-              const SliverFillRemaining(
-                child: Center(child: Text('No expenses found')),
+              SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.search_off,
+                          size: 48, color: Colors.grey.shade300),
+                      const SizedBox(height: 12),
+                      Text('No expenses found',
+                          style: TextStyle(color: Colors.grey.shade500)),
+                    ],
+                  ),
+                ),
               )
             else
               SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     final expense = filtered[index];
-                    return ExpenseCard(
-                      expense: expense,
-                      onDelete: () async {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: const Text('Delete Expense'),
-                            content: const Text(
-                                'Are you sure you want to delete this expense?'),
-                            actions: [
-                              TextButton(
-                                  onPressed: () =>
-                                      Navigator.pop(ctx, false),
-                                  child: const Text('Cancel')),
-                              TextButton(
-                                  onPressed: () =>
-                                      Navigator.pop(ctx, true),
-                                  child: const Text('Delete',
-                                      style:
-                                          TextStyle(color: Colors.red))),
-                            ],
-                          ),
-                        );
-                        if (confirm == true) {
-                          provider.deleteExpense(expense.expenseId);
-                        }
+                    return Dismissible(
+                      key: Key(expense.expenseId),
+                      direction: DismissDirection.endToStart,
+                      background: Container(
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 20),
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(Icons.delete,
+                            color: Colors.red.shade400),
+                      ),
+                      confirmDismiss: (_) => showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Delete Expense'),
+                          content: const Text('Delete this expense?'),
+                          actions: [
+                            TextButton(
+                                onPressed: () =>
+                                    Navigator.pop(ctx, false),
+                                child: const Text('Cancel')),
+                            TextButton(
+                                onPressed: () =>
+                                    Navigator.pop(ctx, true),
+                                child: const Text('Delete',
+                                    style:
+                                        TextStyle(color: Colors.red))),
+                          ],
+                        ),
+                      ),
+                      onDismissed: (_) {
+                        provider.deleteExpense(expense.expenseId);
                       },
+                      child: ExpenseCard(
+                        expense: expense,
+                        onDelete: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Delete Expense'),
+                              content:
+                                  const Text('Delete this expense?'),
+                              actions: [
+                                TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(ctx, false),
+                                    child: const Text('Cancel')),
+                                TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(ctx, true),
+                                    child: const Text('Delete',
+                                        style: TextStyle(
+                                            color: Colors.red))),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            provider.deleteExpense(expense.expenseId);
+                          }
+                        },
+                      ),
                     );
                   },
                   childCount: filtered.length,
@@ -104,6 +158,32 @@ class _ExpenseListScreenState extends State<ExpenseListScreen> {
           ],
         );
       },
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final Color? color;
+  final ValueChanged<bool>? onSelected;
+
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    this.color,
+    this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FilterChip(
+      label: Text(label, style: const TextStyle(fontSize: 12)),
+      selected: selected,
+      selectedColor: color?.withAlpha(60),
+      onSelected: onSelected,
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
     );
   }
 }

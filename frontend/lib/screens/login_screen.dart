@@ -22,12 +22,13 @@ class _LoginScreenState extends State<LoginScreen>
   final _otpCodeController = TextEditingController();
   bool _obscurePassword = true;
   bool _otpSent = false;
-  String? _otpCode; // For demo display
+  String? _otpCode;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() => setState(() {}));
   }
 
   @override
@@ -63,12 +64,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _requestOtp() async {
-    if (_otpEmailController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your email')),
-      );
-      return;
-    }
+    if (_otpEmailController.text.trim().isEmpty) return;
     final auth = context.read<AuthProvider>();
     final result = await auth.requestOtp(_otpEmailController.text.trim());
     if (result != null && mounted) {
@@ -96,123 +92,151 @@ class _LoginScreenState extends State<LoginScreen>
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.account_balance_wallet,
-                    size: 72, color: Theme.of(context).primaryColor),
-                const SizedBox(height: 12),
-                Text('Smart Expense Manager',
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                Text('AI-Powered Expense Tracking',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(color: Colors.grey)),
-                const SizedBox(height: 32),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.account_balance_wallet,
+                      size: 56, color: Theme.of(context).primaryColor),
+                  const SizedBox(height: 8),
+                  Text('Smart Expense Manager',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleLarge
+                          ?.copyWith(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text('AI-Powered Expense Tracking',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: Colors.grey)),
+                  const SizedBox(height: 28),
 
-                // Tab bar
-                TabBar(
-                  controller: _tabController,
-                  tabs: const [
-                    Tab(text: 'Password'),
-                    Tab(text: 'OTP Login'),
-                  ],
-                  onTap: (_) => setState(() {}),
-                ),
-                const SizedBox(height: 20),
+                  // Tabs
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest
+                          .withAlpha(80),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: TabBar(
+                      controller: _tabController,
+                      indicator: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      labelColor: Colors.white,
+                      unselectedLabelColor:
+                          Theme.of(context).colorScheme.onSurface,
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      dividerColor: Colors.transparent,
+                      tabs: const [
+                        Tab(text: 'Password'),
+                        Tab(text: 'OTP Login'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
 
-                // Error display
-                Consumer<AuthProvider>(
-                  builder: (context, auth, _) {
-                    if (auth.error != null) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.red.shade50,
-                            borderRadius: BorderRadius.circular(8),
+                  // Error
+                  Consumer<AuthProvider>(
+                    builder: (context, auth, _) {
+                      if (auth.error != null) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.error_outline,
+                                    color: Colors.red, size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                    child: Text(auth.error!,
+                                        style: const TextStyle(
+                                            color: Colors.red,
+                                            fontSize: 13))),
+                              ],
+                            ),
                           ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.error_outline,
-                                  color: Colors.red, size: 20),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                  child: Text(auth.error!,
-                                      style: const TextStyle(
-                                          color: Colors.red))),
-                            ],
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+
+                  // Tab content — no fixed height
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 200),
+                    child: IndexedStack(
+                      index: _tabController.index,
+                      children: [
+                        _buildPasswordTab(),
+                        _buildOtpTab(),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Quick logins
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Consumer<AuthProvider>(
+                          builder: (context, auth, _) =>
+                              OutlinedButton.icon(
+                            onPressed: auth.isLoading
+                                ? null
+                                : () => _quickLogin('MC', 'MC'),
+                            icon: const Icon(Icons.star, size: 16),
+                            label: const Text('Demo (MC)',
+                                style: TextStyle(fontSize: 13)),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 12),
+                            ),
                           ),
                         ),
-                      );
-                    }
-                    return const SizedBox.shrink();
-                  },
-                ),
-
-                // Tab content
-                SizedBox(
-                  height: _tabController.index == 0 ? 200 : (_otpSent ? 280 : 170),
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildPasswordTab(),
-                      _buildOtpTab(),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Consumer<AuthProvider>(
+                          builder: (context, auth, _) =>
+                              OutlinedButton.icon(
+                            onPressed: auth.isLoading
+                                ? null
+                                : () => _quickLogin('dev', 'dev'),
+                            icon: const Icon(Icons.code, size: 16),
+                            label: const Text('Dev Login',
+                                style: TextStyle(fontSize: 13)),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 12),
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                ),
 
-                const SizedBox(height: 16),
-
-                // Quick login buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: Consumer<AuthProvider>(
-                        builder: (context, auth, _) => OutlinedButton.icon(
-                          onPressed: auth.isLoading
-                              ? null
-                              : () => _quickLogin('MC', 'MC'),
-                          icon: const Icon(Icons.star, size: 18),
-                          label: const Text('Demo (MC)'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Consumer<AuthProvider>(
-                        builder: (context, auth, _) => OutlinedButton.icon(
-                          onPressed: auth.isLoading
-                              ? null
-                              : () => _quickLogin('dev', 'dev'),
-                          icon: const Icon(Icons.code, size: 18),
-                          label: const Text('Dev Login'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) => const RegisterScreen())),
-                  child: const Text("Don't have an account? Sign Up"),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) => const RegisterScreen())),
+                    child:
+                        const Text("Don't have an account? Sign Up"),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -224,12 +248,13 @@ class _LoginScreenState extends State<LoginScreen>
     return Form(
       key: _passwordFormKey,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           TextFormField(
             controller: _emailController,
             decoration: const InputDecoration(
                 labelText: 'Email',
-                prefixIcon: Icon(Icons.email),
+                prefixIcon: Icon(Icons.email_outlined),
                 border: OutlineInputBorder()),
             keyboardType: TextInputType.emailAddress,
             validator: (v) =>
@@ -240,12 +265,12 @@ class _LoginScreenState extends State<LoginScreen>
             controller: _passwordController,
             decoration: InputDecoration(
               labelText: 'Password',
-              prefixIcon: const Icon(Icons.lock),
+              prefixIcon: const Icon(Icons.lock_outline),
               border: const OutlineInputBorder(),
               suffixIcon: IconButton(
                 icon: Icon(_obscurePassword
-                    ? Icons.visibility
-                    : Icons.visibility_off),
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off_outlined),
                 onPressed: () =>
                     setState(() => _obscurePassword = !_obscurePassword),
               ),
@@ -259,14 +284,15 @@ class _LoginScreenState extends State<LoginScreen>
             builder: (context, auth, _) => SizedBox(
               width: double.infinity,
               height: 48,
-              child: ElevatedButton(
+              child: FilledButton(
                 onPressed: auth.isLoading ? null : _signIn,
                 child: auth.isLoading
                     ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Sign In', style: TextStyle(fontSize: 16)),
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Text('Sign In', style: TextStyle(fontSize: 15)),
               ),
             ),
           ),
@@ -279,16 +305,15 @@ class _LoginScreenState extends State<LoginScreen>
     return Form(
       key: _otpFormKey,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           TextFormField(
             controller: _otpEmailController,
             decoration: const InputDecoration(
                 labelText: 'Email',
-                prefixIcon: Icon(Icons.email),
+                prefixIcon: Icon(Icons.email_outlined),
                 border: OutlineInputBorder()),
             keyboardType: TextInputType.emailAddress,
-            validator: (v) =>
-                v == null || v.isEmpty ? 'Enter your email' : null,
           ),
           const SizedBox(height: 12),
           if (!_otpSent)
@@ -296,14 +321,15 @@ class _LoginScreenState extends State<LoginScreen>
               builder: (context, auth, _) => SizedBox(
                 width: double.infinity,
                 height: 48,
-                child: ElevatedButton.icon(
+                child: FilledButton.icon(
                   onPressed: auth.isLoading ? null : _requestOtp,
                   icon: auth.isLoading
                       ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.send),
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.send, size: 18),
                   label: const Text('Send OTP'),
                 ),
               ),
@@ -316,19 +342,19 @@ class _LoginScreenState extends State<LoginScreen>
                 decoration: BoxDecoration(
                   color: Colors.green.shade50,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green.shade200),
                 ),
                 child: Row(
                   children: [
                     Icon(Icons.check_circle,
-                        color: Colors.green.shade700, size: 20),
+                        color: Colors.green.shade700, size: 18),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'OTP sent! Your code: $_otpCode',
+                        'Your OTP: $_otpCode',
                         style: TextStyle(
                             color: Colors.green.shade700,
-                            fontWeight: FontWeight.bold),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13),
                       ),
                     ),
                   ],
@@ -337,14 +363,14 @@ class _LoginScreenState extends State<LoginScreen>
             TextFormField(
               controller: _otpCodeController,
               decoration: const InputDecoration(
-                  labelText: '6-Digit OTP Code',
-                  prefixIcon: Icon(Icons.pin),
+                  labelText: '6-Digit Code',
+                  prefixIcon: Icon(Icons.pin_outlined),
                   border: OutlineInputBorder()),
               keyboardType: TextInputType.number,
               maxLength: 6,
               validator: (v) {
-                if (v == null || v.isEmpty) return 'Enter the OTP code';
-                if (v.length != 6) return 'Code must be 6 digits';
+                if (v == null || v.isEmpty) return 'Enter OTP';
+                if (v.length != 6) return 'Must be 6 digits';
                 return null;
               },
             ),
@@ -353,26 +379,27 @@ class _LoginScreenState extends State<LoginScreen>
               builder: (context, auth, _) => SizedBox(
                 width: double.infinity,
                 height: 48,
-                child: ElevatedButton(
+                child: FilledButton(
                   onPressed: auth.isLoading ? null : _verifyOtp,
                   child: auth.isLoading
                       ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Verify & Sign In',
-                          style: TextStyle(fontSize: 16)),
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Text('Verify & Sign In'),
                 ),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             TextButton(
               onPressed: () => setState(() {
                 _otpSent = false;
                 _otpCode = null;
                 _otpCodeController.clear();
               }),
-              child: const Text('Resend OTP'),
+              child:
+                  const Text('Resend OTP', style: TextStyle(fontSize: 13)),
             ),
           ],
         ],

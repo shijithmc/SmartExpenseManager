@@ -23,6 +23,48 @@ class ExpenseProvider extends ChangeNotifier {
     return map;
   }
 
+  // --- Monthly projection properties ---
+
+  List<Expense> get monthlyExpenses {
+    final now = DateTime.now();
+    return _expenses
+        .where((e) => e.date.year == now.year && e.date.month == now.month)
+        .toList();
+  }
+
+  double get totalThisMonth =>
+      monthlyExpenses.fold(0, (sum, e) => sum + e.amount);
+
+  int get daysElapsed {
+    final now = DateTime.now();
+    return now.day;
+  }
+
+  int get daysInMonth {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month + 1, 0).day;
+  }
+
+  double get dailyAverage {
+    if (daysElapsed == 0) return 0;
+    return totalThisMonth / daysElapsed;
+  }
+
+  double get projectedMonthlySpend => dailyAverage * daysInMonth;
+
+  double get biggestExpense {
+    if (monthlyExpenses.isEmpty) return 0;
+    return monthlyExpenses
+        .map((e) => e.amount)
+        .reduce((a, b) => a > b ? a : b);
+  }
+
+  int get categoriesUsedThisMonth {
+    return monthlyExpenses.map((e) => e.category).toSet().length;
+  }
+
+  // --- Data loading ---
+
   Future<void> loadExpenses() async {
     _isLoading = true;
     _error = null;

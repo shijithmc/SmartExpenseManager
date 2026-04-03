@@ -17,64 +17,124 @@ class SummaryChart extends StatelessWidget {
     final sortedEntries = expensesByCategory.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    return Row(
-      children: [
-        Expanded(
-          flex: 3,
-          child: PieChart(
-            PieChartData(
-              sectionsSpace: 2,
-              centerSpaceRadius: 40,
-              sections: sortedEntries.map((entry) {
-                final percentage = (entry.value / total * 100);
-                return PieChartSectionData(
-                  value: entry.value,
-                  title: '${percentage.toStringAsFixed(0)}%',
-                  color: ExpenseCategory.getCategoryColor(entry.key),
-                  radius: 60,
-                  titleStyle: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white),
-                );
-              }).toList(),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 500;
+
+        if (isMobile) {
+          return Column(
+            children: [
+              SizedBox(
+                height: 160,
+                child: _buildPieChart(sortedEntries, total, 45, 30),
+              ),
+              const SizedBox(height: 12),
+              _buildLegendWrap(sortedEntries, total),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: _buildPieChart(sortedEntries, total, 60, 40),
             ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          flex: 2,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: sortedEntries.take(5).map((entry) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: ExpenseCategory.getCategoryColor(entry.key),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        entry.key,
-                        style: const TextStyle(fontSize: 11),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+            const SizedBox(width: 16),
+            Expanded(
+              flex: 2,
+              child: _buildLegendColumn(sortedEntries, total),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildPieChart(List<MapEntry<String, double>> entries, double total,
+      double radius, double centerRadius) {
+    return PieChart(
+      PieChartData(
+        sectionsSpace: 2,
+        centerSpaceRadius: centerRadius,
+        sections: entries.map((entry) {
+          final percentage = (entry.value / total * 100);
+          return PieChartSectionData(
+            value: entry.value,
+            title: percentage >= 5 ? '${percentage.toStringAsFixed(0)}%' : '',
+            color: ExpenseCategory.getCategoryColor(entry.key),
+            radius: radius,
+            titleStyle: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: Colors.white),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildLegendWrap(
+      List<MapEntry<String, double>> entries, double total) {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 6,
+      alignment: WrapAlignment.center,
+      children: entries.take(6).map((entry) {
+        final pct = (entry.value / total * 100).toStringAsFixed(0);
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: ExpenseCategory.getCategoryColor(entry.key),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '${entry.key} $pct%',
+              style: const TextStyle(fontSize: 11),
+            ),
+          ],
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildLegendColumn(
+      List<MapEntry<String, double>> entries, double total) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: entries.take(6).map((entry) {
+        final pct = (entry.value / total * 100).toStringAsFixed(0);
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: ExpenseCategory.getCategoryColor(entry.key),
+                  shape: BoxShape.circle,
                 ),
-              );
-            }).toList(),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '$pct% ${entry.key}',
+                  style: const TextStyle(fontSize: 12),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
+        );
+      }).toList(),
     );
   }
 }

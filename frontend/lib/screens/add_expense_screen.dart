@@ -92,9 +92,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Add Expense')),
-      body: SingleChildScrollView(
+      body: Center(
+        child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: Form(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,6 +248,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               ),
             ],
           ),
+        ),
+      ),
         ),
       ),
     );

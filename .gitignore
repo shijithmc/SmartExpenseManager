@@ -26,6 +26,10 @@ frontend/pubspec.lock
 .DS_Store
 Thumbs.db
 
+# Build artifacts
+backend/**/publish/
+backend/**/*.zip
+
 # Environment
 *.env
 appsettings.Development.json

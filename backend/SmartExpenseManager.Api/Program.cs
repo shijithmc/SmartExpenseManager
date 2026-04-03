@@ -1,3 +1,4 @@
+using System.Text;
 using Amazon.DynamoDBv2;
 using Amazon.CognitoIdentityProvider;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -5,6 +6,9 @@ using Microsoft.IdentityModel.Tokens;
 using SmartExpenseManager.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Add AWS Lambda hosting support
+builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
 
 // Add AWS services
 builder.Services.AddSingleton<IAmazonDynamoDB>(sp =>
@@ -32,21 +36,43 @@ builder.Services.AddHttpClient();
 builder.Services.AddScoped<IDynamoDbService, DynamoDbService>();
 builder.Services.AddScoped<IAICategorizeService, AICategorizeService>();
 
-// Add JWT authentication
+// JWT Authentication - support both Cognito and demo tokens
 var cognitoRegion = builder.Configuration["AWS:Region"] ?? "us-east-1";
 var cognitoUserPoolId = builder.Configuration["AWS:Cognito:UserPoolId"] ?? "";
 var cognitoAuthority = $"https://cognito-idp.{cognitoRegion}.amazonaws.com/{cognitoUserPoolId}";
+var jwtSigningKey = builder.Configuration["Jwt:SigningKey"] ?? "";
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "SmartExpenseManager";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "SmartExpenseManager";
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.Authority = cognitoAuthority;
+        // Support both Cognito and self-signed demo tokens
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
-            ValidIssuer = cognitoAuthority,
+            ValidIssuers = [cognitoAuthority, jwtIssuer],
             ValidateAudience = false,
-            ValidateLifetime = true
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSigningKey))
+        };
+
+        // For Cognito tokens, also try OIDC discovery
+        options.Authority = cognitoAuthority;
+        options.RequireHttpsMetadata = false;
+
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                // If Cognito validation fails, try local key validation
+                if (context.Exception is SecurityTokenSignatureKeyNotFoundException)
+                {
+                    context.NoResult();
+                }
+                return Task.CompletedTask;
+            }
         };
     });
 

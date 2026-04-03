@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:5000/api';
+  static const String baseUrl = 'https://qq0myi3bo9.execute-api.us-east-1.amazonaws.com/api';
 
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();

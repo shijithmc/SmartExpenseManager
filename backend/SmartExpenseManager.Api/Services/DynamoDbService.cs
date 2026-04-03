@@ -44,7 +44,7 @@ public class DynamoDbService : IDynamoDbService
         };
 
         var response = await _dynamoDb.GetItemAsync(request);
-        return response.Item.Count == 0 ? null : MapToExpense(response.Item);
+        return response.Item == null || response.Item.Count == 0 ? null : MapToExpense(response.Item);
     }
 
     public async Task<Expense> CreateExpenseAsync(string userId, CreateExpenseRequest request, string? aiCategory = null)

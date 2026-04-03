@@ -78,6 +78,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
     if (success && mounted) {
       Navigator.of(context).pop(true);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(provider.error ?? 'Failed to save expense'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 

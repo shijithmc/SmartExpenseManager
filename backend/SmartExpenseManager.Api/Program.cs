@@ -3,6 +3,7 @@ using Amazon.DynamoDBv2;
 using Amazon.CognitoIdentityProvider;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using SmartExpenseManager.Api.Middleware;
 using SmartExpenseManager.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -96,6 +97,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+app.UseMiddleware<GlobalExceptionHandler>();
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseCors();

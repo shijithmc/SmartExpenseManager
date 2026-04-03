@@ -66,10 +66,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
           return const Center(child: CircularProgressIndicator());
         }
 
+        if (provider.error != null && provider.expenses.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                Text('Failed to load expenses',
+                    style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  onPressed: () => provider.loadExpenses(),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ),
+          );
+        }
+
         return CustomScrollView(
           slivers: [
-            SliverAppBar.large(
+            SliverAppBar(
               title: const Text('Dashboard'),
+              floating: true,
               actions: [
                 IconButton(
                   icon: const Icon(Icons.refresh),
@@ -120,7 +141,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: 16),
                     if (provider.expenses.isNotEmpty)
                       SizedBox(
-                        height: 250,
+                        height: 200,
                         child: SummaryChart(
                             expensesByCategory: provider.expensesByCategory),
                       )

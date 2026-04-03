@@ -15,51 +15,75 @@ public class AuthController : ControllerBase
 {
     private readonly IAmazonCognitoIdentityProvider _cognitoClient;
     private readonly IConfiguration _configuration;
+    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IAmazonCognitoIdentityProvider cognitoClient, IConfiguration configuration)
+    public AuthController(IAmazonCognitoIdentityProvider cognitoClient, IConfiguration configuration, ILogger<AuthController> logger)
     {
         _cognitoClient = cognitoClient;
         _configuration = configuration;
+        _logger = logger;
     }
 
     [HttpPost("signup")]
     public async Task<IActionResult> SignUp([FromBody] Models.SignUpRequest request)
     {
-        var clientId = _configuration["AWS:Cognito:ClientId"];
+        if (!ModelState.IsValid) return ValidationProblem();
 
-        var cognitoSignUpRequest = new Amazon.CognitoIdentityProvider.Model.SignUpRequest
+        try
         {
-            ClientId = clientId,
-            Username = request.Email,
-            Password = request.Password,
-            UserAttributes =
-            [
-                new AttributeType { Name = "email", Value = request.Email },
-                new AttributeType { Name = "name", Value = request.Name }
-            ]
-        };
+            var clientId = _configuration["AWS:Cognito:ClientId"];
 
-        var response = await _cognitoClient.SignUpAsync(cognitoSignUpRequest);
-        return Ok(new { message = "User registered. Please check email for confirmation code.", userId = response.UserSub });
+            var cognitoSignUpRequest = new Amazon.CognitoIdentityProvider.Model.SignUpRequest
+            {
+                ClientId = clientId,
+                Username = request.Email,
+                Password = request.Password,
+                UserAttributes =
+                [
+                    new AttributeType { Name = "email", Value = request.Email },
+                    new AttributeType { Name = "name", Value = request.Name }
+                ]
+            };
+
+            var response = await _cognitoClient.SignUpAsync(cognitoSignUpRequest);
+            return Ok(new { message = "User registered. Please check email for confirmation code.", userId = response.UserSub });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Sign up failed for {Email}", request.Email);
+            return BadRequest(new { error = "Registration failed. Please try again." });
+        }
     }
 
     [HttpPost("confirm")]
     public async Task<IActionResult> ConfirmSignUp([FromBody] Models.ConfirmSignUpRequest request)
     {
-        var clientId = _configuration["AWS:Cognito:ClientId"];
-        await _cognitoClient.ConfirmSignUpAsync(new Amazon.CognitoIdentityProvider.Model.ConfirmSignUpRequest
-        {
-            ClientId = clientId,
-            Username = request.Email,
-            ConfirmationCode = request.ConfirmationCode
-        });
+        if (!ModelState.IsValid) return ValidationProblem();
 
-        return Ok(new { message = "Email confirmed successfully" });
+        try
+        {
+            var clientId = _configuration["AWS:Cognito:ClientId"];
+            await _cognitoClient.ConfirmSignUpAsync(new Amazon.CognitoIdentityProvider.Model.ConfirmSignUpRequest
+            {
+                ClientId = clientId,
+                Username = request.Email,
+                ConfirmationCode = request.ConfirmationCode
+            });
+
+            return Ok(new { message = "Email confirmed successfully" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Confirm sign up failed for {Email}", request.Email);
+            return BadRequest(new { error = "Confirmation failed. Please check your code and try again." });
+        }
     }
 
     [HttpPost("signin")]
     public async Task<IActionResult> SignIn([FromBody] SignInRequest request)
     {
+        if (!ModelState.IsValid) return ValidationProblem();
+
         // Demo user login
         var demoUsername = _configuration["DemoUser:Username"];
         var demoPassword = _configuration["DemoUser:Password"];
@@ -77,29 +101,48 @@ public class AuthController : ControllerBase
         }
 
         // Cognito login
-        var clientId = _configuration["AWS:Cognito:ClientId"];
-        var userPoolId = _configuration["AWS:Cognito:UserPoolId"];
-
-        var authRequest = new AdminInitiateAuthRequest
+        try
         {
-            UserPoolId = userPoolId,
-            ClientId = clientId,
-            AuthFlow = AuthFlowType.ADMIN_USER_PASSWORD_AUTH,
-            AuthParameters = new Dictionary<string, string>
+            var clientId = _configuration["AWS:Cognito:ClientId"];
+            var userPoolId = _configuration["AWS:Cognito:UserPoolId"];
+
+            if (string.IsNullOrEmpty(clientId) || clientId == "YOUR_CLIENT_ID")
+                return Unauthorized(new { error = "Invalid credentials" });
+
+            var authRequest = new AdminInitiateAuthRequest
             {
-                { "USERNAME", request.Email },
-                { "PASSWORD", request.Password }
-            }
-        };
+                UserPoolId = userPoolId,
+                ClientId = clientId,
+                AuthFlow = AuthFlowType.ADMIN_USER_PASSWORD_AUTH,
+                AuthParameters = new Dictionary<string, string>
+                {
+                    { "USERNAME", request.Email },
+                    { "PASSWORD", request.Password }
+                }
+            };
 
-        var response = await _cognitoClient.AdminInitiateAuthAsync(authRequest);
-        return Ok(new AuthResponse
+            var response = await _cognitoClient.AdminInitiateAuthAsync(authRequest);
+            return Ok(new AuthResponse
+            {
+                Token = response.AuthenticationResult.IdToken,
+                RefreshToken = response.AuthenticationResult.RefreshToken,
+                UserId = request.Email,
+                Email = request.Email
+            });
+        }
+        catch (NotAuthorizedException)
         {
-            Token = response.AuthenticationResult.IdToken,
-            RefreshToken = response.AuthenticationResult.RefreshToken,
-            UserId = request.Email,
-            Email = request.Email
-        });
+            return Unauthorized(new { error = "Invalid credentials" });
+        }
+        catch (UserNotFoundException)
+        {
+            return Unauthorized(new { error = "Invalid credentials" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Sign in failed for {Email}", request.Email);
+            return Unauthorized(new { error = "Invalid credentials" });
+        }
     }
 
     private string GenerateDemoJwt(string username)

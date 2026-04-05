@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../models/category.dart';
+import '../theme/app_theme.dart';
 
 class SummaryChart extends StatelessWidget {
   final Map<String, double> expensesByCategory;
@@ -22,16 +23,7 @@ class SummaryChart extends StatelessWidget {
         final isMobile = constraints.maxWidth < 500;
 
         if (isMobile) {
-          return Column(
-            children: [
-              SizedBox(
-                height: 160,
-                child: _buildPieChart(sortedEntries, total, 45, 30),
-              ),
-              const SizedBox(height: 12),
-              _buildLegendWrap(sortedEntries, total),
-            ],
-          );
+          return _buildCategoryCards(context, sortedEntries, total);
         }
 
         return Row(
@@ -48,6 +40,84 @@ class SummaryChart extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildCategoryCards(BuildContext context,
+      List<MapEntry<String, double>> entries, double total) {
+    final maxAmount = entries.first.value;
+
+    return SizedBox(
+      height: 140,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        itemCount: entries.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (context, index) {
+          final entry = entries[index];
+          final color = ExpenseCategory.getCategoryColor(entry.key);
+          final iconName = ExpenseCategory.defaults
+                  .where((c) => c.name == entry.key)
+                  .firstOrNull
+                  ?.icon ??
+              'more_horiz';
+          final pct = (entry.value / total * 100).toStringAsFixed(0);
+          final progressRatio = maxAmount > 0 ? entry.value / maxAmount : 0.0;
+
+          return Container(
+            width: 140,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardTheme.color ?? Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: AppTokens.shadowLow,
+
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: color.withAlpha(30),
+                  child: Icon(
+                    ExpenseCategory.getIcon(iconName),
+                    color: color,
+                    size: 16,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  entry.key,
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '\$${entry.value.toStringAsFixed(0)} ($pct%)',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+                const Spacer(),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: LinearProgressIndicator(
+                    value: progressRatio.clamp(0.0, 1.0),
+                    minHeight: 3,
+                    backgroundColor: color.withAlpha(30),
+                    valueColor: AlwaysStoppedAnimation<Color>(color),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -71,36 +141,6 @@ class SummaryChart extends StatelessWidget {
           );
         }).toList(),
       ),
-    );
-  }
-
-  Widget _buildLegendWrap(
-      List<MapEntry<String, double>> entries, double total) {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 6,
-      alignment: WrapAlignment.center,
-      children: entries.take(6).map((entry) {
-        final pct = (entry.value / total * 100).toStringAsFixed(0);
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                color: ExpenseCategory.getCategoryColor(entry.key),
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              '${entry.key} $pct%',
-              style: const TextStyle(fontSize: 11),
-            ),
-          ],
-        );
-      }).toList(),
     );
   }
 

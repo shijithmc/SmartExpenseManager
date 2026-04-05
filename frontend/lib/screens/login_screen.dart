@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../theme/app_theme.dart';
+import '../widgets/gradient_button.dart';
 import 'register_screen.dart';
 import 'dashboard_screen.dart';
 
@@ -97,9 +99,18 @@ class _LoginScreenState extends State<LoginScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.account_balance_wallet,
-                      size: 56, color: Theme.of(context).primaryColor),
-                  const SizedBox(height: 8),
+                  // Icon in gradient circle
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: AppTokens.primaryGradient,
+                    ),
+                    child: const Icon(Icons.account_balance_wallet,
+                        size: 36, color: Colors.white),
+                  ),
+                  const SizedBox(height: 16),
                   Text('Smart Expense Manager',
                       style: Theme.of(context)
                           .textTheme
@@ -113,29 +124,75 @@ class _LoginScreenState extends State<LoginScreen>
                           ?.copyWith(color: Colors.grey)),
                   const SizedBox(height: 28),
 
-                  // Tabs
+                  // Toggle buttons
                   Container(
                     decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .surfaceContainerHighest
-                          .withAlpha(80),
+                      color: const Color(0xFFF1F3F5),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: TabBar(
-                      controller: _tabController,
-                      indicator: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      labelColor: Colors.white,
-                      unselectedLabelColor:
-                          Theme.of(context).colorScheme.onSurface,
-                      indicatorSize: TabBarIndicatorSize.tab,
-                      dividerColor: Colors.transparent,
-                      tabs: const [
-                        Tab(text: 'Password'),
-                        Tab(text: 'OTP Login'),
+                    padding: const EdgeInsets.all(3),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () =>
+                                _tabController.animateTo(0),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: _tabController.index == 0
+                                    ? AppTokens.primaryColor
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                'Password',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: _tabController.index == 0
+                                      ? Colors.white
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .onSurface,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () =>
+                                _tabController.animateTo(1),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: _tabController.index == 1
+                                    ? AppTokens.primaryColor
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                'OTP Login',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: _tabController.index == 1
+                                      ? Colors.white
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .onSurface,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -172,7 +229,7 @@ class _LoginScreenState extends State<LoginScreen>
                     },
                   ),
 
-                  // Tab content — no fixed height
+                  // Tab content
                   AnimatedSize(
                     duration: const Duration(milliseconds: 200),
                     child: IndexedStack(
@@ -186,48 +243,38 @@ class _LoginScreenState extends State<LoginScreen>
 
                   const SizedBox(height: 20),
 
-                  // Quick logins
+                  // Quick logins - demoted to text buttons
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Expanded(
-                        child: Consumer<AuthProvider>(
-                          builder: (context, auth, _) =>
-                              OutlinedButton.icon(
-                            onPressed: auth.isLoading
-                                ? null
-                                : () => _quickLogin('MC', 'MC'),
-                            icon: const Icon(Icons.star, size: 16),
-                            label: const Text('Demo (MC)',
-                                style: TextStyle(fontSize: 13)),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 12),
-                            ),
-                          ),
+                      Consumer<AuthProvider>(
+                        builder: (context, auth, _) => TextButton(
+                          onPressed: auth.isLoading
+                              ? null
+                              : () => _quickLogin('MC', 'MC'),
+                          child: Text('Demo (MC)',
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade600)),
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Consumer<AuthProvider>(
-                          builder: (context, auth, _) =>
-                              OutlinedButton.icon(
-                            onPressed: auth.isLoading
-                                ? null
-                                : () => _quickLogin('dev', 'dev'),
-                            icon: const Icon(Icons.code, size: 16),
-                            label: const Text('Dev Login',
-                                style: TextStyle(fontSize: 13)),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 12),
-                            ),
-                          ),
+                      Text(' | ',
+                          style: TextStyle(color: Colors.grey.shade400)),
+                      Consumer<AuthProvider>(
+                        builder: (context, auth, _) => TextButton(
+                          onPressed: auth.isLoading
+                              ? null
+                              : () => _quickLogin('dev', 'dev'),
+                          child: Text('Dev Login',
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade600)),
                         ),
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 4),
                   TextButton(
                     onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute(
@@ -254,8 +301,7 @@ class _LoginScreenState extends State<LoginScreen>
             controller: _emailController,
             decoration: const InputDecoration(
                 labelText: 'Email',
-                prefixIcon: Icon(Icons.email_outlined),
-                border: OutlineInputBorder()),
+                prefixIcon: Icon(Icons.email_outlined)),
             keyboardType: TextInputType.emailAddress,
             validator: (v) =>
                 v == null || v.isEmpty ? 'Enter your email' : null,
@@ -266,7 +312,6 @@ class _LoginScreenState extends State<LoginScreen>
             decoration: InputDecoration(
               labelText: 'Password',
               prefixIcon: const Icon(Icons.lock_outline),
-              border: const OutlineInputBorder(),
               suffixIcon: IconButton(
                 icon: Icon(_obscurePassword
                     ? Icons.visibility_outlined
@@ -281,19 +326,15 @@ class _LoginScreenState extends State<LoginScreen>
           ),
           const SizedBox(height: 16),
           Consumer<AuthProvider>(
-            builder: (context, auth, _) => SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: FilledButton(
-                onPressed: auth.isLoading ? null : _signIn,
-                child: auth.isLoading
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Text('Sign In', style: TextStyle(fontSize: 15)),
-              ),
+            builder: (context, auth, _) => GradientButton(
+              onPressed: auth.isLoading ? null : _signIn,
+              child: auth.isLoading
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Text('Sign In'),
             ),
           ),
         ],
@@ -311,27 +352,28 @@ class _LoginScreenState extends State<LoginScreen>
             controller: _otpEmailController,
             decoration: const InputDecoration(
                 labelText: 'Email',
-                prefixIcon: Icon(Icons.email_outlined),
-                border: OutlineInputBorder()),
+                prefixIcon: Icon(Icons.email_outlined)),
             keyboardType: TextInputType.emailAddress,
           ),
           const SizedBox(height: 12),
           if (!_otpSent)
             Consumer<AuthProvider>(
-              builder: (context, auth, _) => SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: FilledButton.icon(
-                  onPressed: auth.isLoading ? null : _requestOtp,
-                  icon: auth.isLoading
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.send, size: 18),
-                  label: const Text('Send OTP'),
-                ),
+              builder: (context, auth, _) => GradientButton(
+                onPressed: auth.isLoading ? null : _requestOtp,
+                child: auth.isLoading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.send, size: 18),
+                          SizedBox(width: 8),
+                          Text('Send OTP'),
+                        ],
+                      ),
               ),
             ),
           if (_otpSent) ...[
@@ -364,8 +406,7 @@ class _LoginScreenState extends State<LoginScreen>
               controller: _otpCodeController,
               decoration: const InputDecoration(
                   labelText: '6-Digit Code',
-                  prefixIcon: Icon(Icons.pin_outlined),
-                  border: OutlineInputBorder()),
+                  prefixIcon: Icon(Icons.pin_outlined)),
               keyboardType: TextInputType.number,
               maxLength: 6,
               validator: (v) {
@@ -376,19 +417,15 @@ class _LoginScreenState extends State<LoginScreen>
             ),
             const SizedBox(height: 8),
             Consumer<AuthProvider>(
-              builder: (context, auth, _) => SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: FilledButton(
-                  onPressed: auth.isLoading ? null : _verifyOtp,
-                  child: auth.isLoading
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                      : const Text('Verify & Sign In'),
-                ),
+              builder: (context, auth, _) => GradientButton(
+                onPressed: auth.isLoading ? null : _verifyOtp,
+                child: auth.isLoading
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Text('Verify & Sign In'),
               ),
             ),
             const SizedBox(height: 4),

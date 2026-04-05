@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'dart:math' as math;
+import '../theme/app_theme.dart';
 
 class ProjectedSpendCard extends StatelessWidget {
   final double totalThisMonth;
@@ -20,163 +22,178 @@ class ProjectedSpendCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progress = daysInMonth > 0 ? daysElapsed / daysInMonth : 0.0;
-    final spendRatio =
-        projectedMonthlySpend > 0 ? totalThisMonth / projectedMonthlySpend : 0.0;
-
-    // Color logic based on projected vs actual pace
-    Color accentColor;
-    String paceText;
-    if (totalThisMonth == 0) {
-      accentColor = Colors.grey;
-      paceText = 'No expenses yet';
-    } else if (spendRatio < 0.8) {
-      accentColor = const Color(0xFF4CAF50); // green
-      paceText = 'Below average pace';
-    } else if (spendRatio <= 1.0) {
-      accentColor = const Color(0xFFFFA726); // amber
-      paceText = 'On track';
-    } else {
-      accentColor = const Color(0xFFEF5350); // red
-      paceText = 'Above average pace';
-    }
-
     final monthName = DateFormat('MMMM yyyy').format(DateTime.now());
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: accentColor.withAlpha(60)),
+    String paceText;
+    final spendRatio =
+        projectedMonthlySpend > 0 ? totalThisMonth / projectedMonthlySpend : 0.0;
+    if (totalThisMonth == 0) {
+      paceText = 'No expenses yet';
+    } else if (spendRatio < 0.8) {
+      paceText = 'Below average';
+    } else if (spendRatio <= 1.0) {
+      paceText = 'On track';
+    } else {
+      paceText = 'Above average';
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: AppTokens.primaryGradient,
+        borderRadius: BorderRadius.circular(AppTokens.radiusXl),
+        boxShadow: AppTokens.shadowMedium,
       ),
-      color: accentColor.withAlpha(15),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   monthName,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: accentColor, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: accentColor.withAlpha(30),
-                    borderRadius: BorderRadius.circular(12),
+                const SizedBox(height: 6),
+                Text(
+                  '\$${totalThisMonth.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: -0.5,
                   ),
-                  child: Text(
-                    'Day $daysElapsed of $daysInMonth',
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: accentColor,
-                        fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'spent this month',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
                   ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    _WhiteStat(
+                      label: 'Daily avg',
+                      value: '\$${dailyAverage.toStringAsFixed(2)}',
+                    ),
+                    const SizedBox(width: 20),
+                    _WhiteStat(
+                      label: 'Projected',
+                      value: '\$${projectedMonthlySpend.toStringAsFixed(0)}',
+                    ),
+                    const SizedBox(width: 20),
+                    _WhiteStat(
+                      label: 'Pace',
+                      value: paceText,
+                    ),
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              '\$${totalThisMonth.toStringAsFixed(2)}',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'spent this month',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-
-            // Progress bar
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: progress.clamp(0.0, 1.0),
-                minHeight: 8,
-                backgroundColor: accentColor.withAlpha(30),
-                valueColor: AlwaysStoppedAnimation<Color>(accentColor),
+          ),
+          const SizedBox(width: 16),
+          SizedBox(
+            width: 56,
+            height: 56,
+            child: CustomPaint(
+              painter: _ProgressRingPainter(progress: progress.clamp(0.0, 1.0)),
+              child: Center(
+                child: Text(
+                  '${(progress * 100).toInt()}%',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 12),
-
-            // Bottom stats row
-            Row(
-              children: [
-                Expanded(
-                  child: _StatItem(
-                    label: 'Daily avg',
-                    value: '\$${dailyAverage.toStringAsFixed(2)}',
-                    icon: Icons.trending_up,
-                    color: accentColor,
-                  ),
-                ),
-                Container(width: 1, height: 32, color: Colors.grey.withAlpha(50)),
-                Expanded(
-                  child: _StatItem(
-                    label: 'Projected',
-                    value: '\$${projectedMonthlySpend.toStringAsFixed(0)}',
-                    icon: Icons.calendar_month,
-                    color: accentColor,
-                  ),
-                ),
-                Container(width: 1, height: 32, color: Colors.grey.withAlpha(50)),
-                Expanded(
-                  child: _StatItem(
-                    label: 'Pace',
-                    value: paceText,
-                    icon: Icons.speed,
-                    color: accentColor,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _StatItem extends StatelessWidget {
+class _WhiteStat extends StatelessWidget {
   final String label;
   final String value;
-  final IconData icon;
-  final Color color;
 
-  const _StatItem({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
+  const _WhiteStat({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: color),
-        const SizedBox(height: 4),
         Text(
           value,
-          style: TextStyle(
-              fontSize: 12, fontWeight: FontWeight.w600, color: color),
-          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
           overflow: TextOverflow.ellipsis,
         ),
+        const SizedBox(height: 2),
         Text(
           label,
-          style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 10,
+          ),
         ),
       ],
     );
+  }
+}
+
+class _ProgressRingPainter extends CustomPainter {
+  final double progress;
+
+  _ProgressRingPainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2 - 2;
+    const strokeWidth = 4.0;
+
+    // Background ring
+    final bgPaint = Paint()
+      ..color = Colors.white.withAlpha(51)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawCircle(center, radius, bgPaint);
+
+    // Progress arc
+    final fgPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -math.pi / 2,
+      progress * 2 * math.pi,
+      false,
+      fgPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _ProgressRingPainter oldDelegate) {
+    return oldDelegate.progress != progress;
   }
 }

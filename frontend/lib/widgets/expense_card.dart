@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/expense.dart';
 import '../models/category.dart';
+import '../theme/app_theme.dart';
 
 class ExpenseCard extends StatelessWidget {
   final Expense expense;
@@ -18,102 +19,89 @@ class ExpenseCard extends StatelessWidget {
             ?.icon ??
         'more_horiz';
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.withAlpha(30)),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color ?? Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppTokens.shadowLow,
       ),
-      child: IntrinsicHeight(
-        child: Row(
-          children: [
-            // Color accent bar
-            Container(
-              width: 4,
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  bottomLeft: Radius.circular(12),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {},
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 22,
+                  backgroundColor: color.withAlpha(30),
+                  child: Icon(
+                    ExpenseCategory.getIcon(iconName),
+                    color: color,
+                    size: 20,
+                  ),
                 ),
-              ),
-            ),
-            // Content
-            Expanded(
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundColor: color.withAlpha(30),
-                      child: Icon(
-                        ExpenseCategory.getIcon(iconName),
-                        color: color,
-                        size: 18,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
                         children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  expense.description.isEmpty
-                                      ? expense.category
-                                      : expense.description,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 14),
-                                ),
-                              ),
-                              if (expense.aiCategorized)
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 4),
-                                  child: Icon(Icons.auto_awesome,
-                                      size: 14,
-                                      color: Colors.amber.shade600),
-                                ),
-                            ],
+                          Expanded(
+                            child: Text(
+                              expense.description.isEmpty
+                                  ? expense.category
+                                  : expense.description,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15),
+                            ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${expense.category} \u00b7 ${DateFormat('MMM d').format(expense.date)}',
-                            style: TextStyle(
-                                fontSize: 12, color: Colors.grey.shade500),
-                          ),
+                          if (expense.aiCategorized)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 4),
+                              child: Icon(Icons.auto_awesome,
+                                  size: 14,
+                                  color: Colors.amber.shade600),
+                            ),
                         ],
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '\$${expense.amount.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 15),
-                    ),
-                    if (onDelete != null)
-                      SizedBox(
-                        width: 36,
-                        height: 36,
-                        child: IconButton(
-                          icon: Icon(Icons.delete_outline,
-                              color: Colors.red.shade300, size: 18),
-                          onPressed: onDelete,
-                          padding: EdgeInsets.zero,
-                        ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${expense.category} \u00b7 ${DateFormat('MMM d').format(expense.date)}',
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey.shade500),
                       ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                Text(
+                  '\$${expense.amount.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 16),
+                ),
+                if (onDelete != null)
+                  SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: IconButton(
+                      icon: Icon(Icons.delete_outline,
+                          color: Colors.red.shade300, size: 18),
+                      onPressed: onDelete,
+                      padding: EdgeInsets.zero,
+                    ),
+                  ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

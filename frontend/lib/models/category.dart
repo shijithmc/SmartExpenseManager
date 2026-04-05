@@ -24,35 +24,35 @@ class ExpenseCategory {
     ExpenseCategory(
         name: 'Food & Dining',
         icon: 'restaurant',
-        color: const Color(0xFFFF6B6B)),
+        color: const Color(0xFFEF4444)),
     ExpenseCategory(
         name: 'Transportation',
         icon: 'directions_car',
-        color: const Color(0xFF4ECDC4)),
+        color: const Color(0xFF06B6D4)),
     ExpenseCategory(
         name: 'Shopping',
         icon: 'shopping_bag',
-        color: const Color(0xFF45B7D1)),
+        color: const Color(0xFF8B5CF6)),
     ExpenseCategory(
         name: 'Bills & Utilities',
         icon: 'receipt_long',
-        color: const Color(0xFF96CEB4)),
+        color: const Color(0xFFF59E0B)),
     ExpenseCategory(
         name: 'Entertainment',
         icon: 'movie',
-        color: const Color(0xFFFFEAA7)),
+        color: const Color(0xFFEC4899)),
     ExpenseCategory(
         name: 'Healthcare',
         icon: 'local_hospital',
-        color: const Color(0xFFDDA0DD)),
+        color: const Color(0xFF10B981)),
     ExpenseCategory(
-        name: 'Travel', icon: 'flight', color: const Color(0xFF98D8C8)),
+        name: 'Travel', icon: 'flight', color: const Color(0xFF3B82F6)),
     ExpenseCategory(
-        name: 'Education', icon: 'school', color: const Color(0xFFF7DC6F)),
+        name: 'Education', icon: 'school', color: const Color(0xFFF97316)),
     ExpenseCategory(
-        name: 'Personal', icon: 'person', color: const Color(0xFFBB8FCE)),
+        name: 'Personal', icon: 'person', color: const Color(0xFFA855F7)),
     ExpenseCategory(
-        name: 'Other', icon: 'more_horiz', color: const Color(0xFFAEB6BF)),
+        name: 'Other', icon: 'more_horiz', color: const Color(0xFF6B7280)),
   ];
 
   static IconData getIcon(String iconName) {
@@ -83,6 +83,6 @@ class ExpenseCategory {
   static Color getCategoryColor(String categoryName) {
     final cat =
         defaults.where((c) => c.name == categoryName).firstOrNull;
-    return cat?.color ?? const Color(0xFFAEB6BF);
+    return cat?.color ?? const Color(0xFF6B7280);
   }
 }

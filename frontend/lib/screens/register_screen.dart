@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../theme/app_theme.dart';
+import '../widgets/gradient_button.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -60,8 +62,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _nameController,
                   decoration: const InputDecoration(
                       labelText: 'Full Name',
-                      prefixIcon: Icon(Icons.person),
-                      border: OutlineInputBorder()),
+                      prefixIcon: Icon(Icons.person)),
                   validator: (v) =>
                       v == null || v.isEmpty ? 'Enter your name' : null,
                 ),
@@ -70,8 +71,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _emailController,
                   decoration: const InputDecoration(
                       labelText: 'Email',
-                      prefixIcon: Icon(Icons.email),
-                      border: OutlineInputBorder()),
+                      prefixIcon: Icon(Icons.email)),
                   keyboardType: TextInputType.emailAddress,
                   validator: (v) =>
                       v == null || v.isEmpty ? 'Enter your email' : null,
@@ -82,7 +82,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   decoration: InputDecoration(
                     labelText: 'Password',
                     prefixIcon: const Icon(Icons.lock),
-                    border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
                       icon: Icon(_obscurePassword
                           ? Icons.visibility
@@ -114,20 +113,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   },
                 ),
                 Consumer<AuthProvider>(
-                  builder: (context, auth, _) => SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: auth.isLoading ? null : _signUp,
-                      child: auth.isLoading
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child:
-                                  CircularProgressIndicator(strokeWidth: 2))
-                          : const Text('Sign Up',
-                              style: TextStyle(fontSize: 16)),
-                    ),
+                  builder: (context, auth, _) => GradientButton(
+                    onPressed: auth.isLoading ? null : _signUp,
+                    child: auth.isLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child:
+                                CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Text('Sign Up'),
                   ),
                 ),
               ],

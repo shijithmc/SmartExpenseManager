@@ -4,6 +4,7 @@ import 'providers/auth_provider.dart';
 import 'providers/expense_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'theme/app_theme.dart';
 
 void main() {
   runApp(const SmartExpenseManagerApp());
@@ -22,16 +23,8 @@ class SmartExpenseManagerApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Smart Expense Manager',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorSchemeSeed: const Color(0xFF6366F1),
-          useMaterial3: true,
-          brightness: Brightness.light,
-        ),
-        darkTheme: ThemeData(
-          colorSchemeSeed: const Color(0xFF6366F1),
-          useMaterial3: true,
-          brightness: Brightness.dark,
-        ),
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
         home: const AuthWrapper(),
       ),
     );

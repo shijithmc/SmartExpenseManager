@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/expense_provider.dart';
 import '../providers/auth_provider.dart';
+import '../theme/app_theme.dart';
 import '../widgets/summary_chart.dart';
 import '../widgets/projected_spend_card.dart';
 import '../widgets/spending_trend_chart.dart';
@@ -77,6 +78,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildDashboard() {
     final email = context.watch<AuthProvider>().email ?? 'User';
     final greeting = _getGreeting();
+    final initial = email.isNotEmpty ? email[0].toUpperCase() : 'U';
 
     return Consumer<ExpenseProvider>(
       builder: (context, provider, _) {
@@ -113,6 +115,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
             slivers: [
               SliverAppBar(
                 floating: true,
+                leading: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: CircleAvatar(
+                    backgroundColor: AppTokens.primaryColor,
+                    child: Text(initial,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600)),
+                  ),
+                ),
                 title: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -139,7 +151,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   delegate: SliverChildListDelegate([
                     const SizedBox(height: 8),
 
-                    // Projected monthly spend card
+                    // Hero: Projected monthly spend card
                     ProjectedSpendCard(
                       totalThisMonth: provider.totalThisMonth,
                       dailyAverage: provider.dailyAverage,
@@ -148,57 +160,65 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       daysInMonth: provider.daysInMonth,
                     ),
 
-                    // Budget progress (if budget set)
+                    const SizedBox(height: 24),
+
+                    // Budget inline thin bar (if budget set)
                     if (provider.monthlyBudget > 0) ...[
-                      const SizedBox(height: 12),
-                      _BudgetCard(
+                      _BudgetBar(
                         budget: provider.monthlyBudget,
                         spent: provider.totalThisMonth,
                         remaining: provider.budgetRemaining,
                         progress: provider.budgetProgress,
                         isOver: provider.isOverBudget,
                       ),
+                      const SizedBox(height: 40),
                     ],
 
-                    const SizedBox(height: 20),
-
-                    // Quick stats
-                    Row(
-                      children: [
-                        _QuickStat(
-                            icon: Icons.receipt_outlined,
-                            label: 'Transactions',
-                            value: '${provider.monthlyExpenses.length}',
-                            color: const Color(0xFF6366F1)),
-                        const SizedBox(width: 8),
-                        _QuickStat(
-                            icon: Icons.category_outlined,
-                            label: 'Categories',
-                            value: '${provider.categoriesUsedThisMonth}',
-                            color: const Color(0xFF4ECDC4)),
-                        const SizedBox(width: 8),
-                        _QuickStat(
-                            icon: Icons.arrow_upward,
-                            label: 'Biggest',
-                            value:
-                                '\$${provider.biggestExpense.toStringAsFixed(0)}',
-                            color: const Color(0xFFFF6B6B)),
-                      ],
+                    // Quick stats - horizontal scroll
+                    Text('Quick Stats',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontSize: 20, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 12),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _QuickStat(
+                              icon: Icons.receipt_outlined,
+                              label: 'Transactions',
+                              value: '${provider.monthlyExpenses.length}',
+                              color: const Color(0xFF6366F1)),
+                          const SizedBox(width: 8),
+                          _QuickStat(
+                              icon: Icons.category_outlined,
+                              label: 'Categories',
+                              value: '${provider.categoriesUsedThisMonth}',
+                              color: const Color(0xFF4ECDC4)),
+                          const SizedBox(width: 8),
+                          _QuickStat(
+                              icon: Icons.arrow_upward,
+                              label: 'Biggest',
+                              value:
+                                  '\$${provider.biggestExpense.toStringAsFixed(0)}',
+                              color: const Color(0xFFFF6B6B)),
+                        ],
+                      ),
                     ),
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 40),
 
                     // 7-day spending trend
                     if (provider.expenses.isNotEmpty) ...[
                       Text('Last 7 Days',
                           style: Theme.of(context)
                               .textTheme
-                              .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w600)),
+                              .titleLarge
+                              ?.copyWith(
+                                  fontSize: 20, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 12),
                       SpendingTrendChart(
                           last7DaysSpending: provider.last7DaysSpending),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 40),
                     ],
 
                     // Category chart
@@ -206,12 +226,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Text('Spending by Category',
                           style: Theme.of(context)
                               .textTheme
-                              .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w600)),
+                              .titleLarge
+                              ?.copyWith(
+                                  fontSize: 20, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 12),
                       SummaryChart(
                           expensesByCategory: provider.expensesByCategory),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 40),
                     ],
 
                     // Recent expenses
@@ -221,8 +242,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Text('Recent Expenses',
                             style: Theme.of(context)
                                 .textTheme
-                                .titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w600)),
+                                .titleLarge
+                                ?.copyWith(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w600)),
                         if (provider.expenses.length > 3)
                           TextButton(
                             onPressed: () =>
@@ -304,14 +327,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-class _BudgetCard extends StatelessWidget {
+class _BudgetBar extends StatelessWidget {
   final double budget;
   final double spent;
   final double remaining;
   final double progress;
   final bool isOver;
 
-  const _BudgetCard({
+  const _BudgetBar({
     required this.budget,
     required this.spent,
     required this.remaining,
@@ -321,52 +344,41 @@ class _BudgetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isOver ? Colors.red : const Color(0xFF6366F1);
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: color.withAlpha(40)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Monthly Budget',
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: color)),
-                Text('\$${budget.toStringAsFixed(0)}',
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: color)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: progress.clamp(0.0, 1.0),
-                minHeight: 6,
-                backgroundColor: color.withAlpha(25),
-                valueColor: AlwaysStoppedAnimation<Color>(color),
+    final color = isOver ? Colors.red : AppTokens.primaryColor;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Monthly Budget',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: color)),
+              Text(
+                isOver
+                    ? 'Over by \$${(spent - budget).toStringAsFixed(2)}'
+                    : '\$${remaining.toStringAsFixed(2)} remaining',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: color),
               ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress.clamp(0.0, 1.0),
+              minHeight: 4,
+              backgroundColor: color.withAlpha(25),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
             ),
-            const SizedBox(height: 6),
-            Text(
-              isOver
-                  ? 'Over budget by \$${(spent - budget).toStringAsFixed(2)}'
-                  : '\$${remaining.toStringAsFixed(2)} remaining',
-              style: TextStyle(fontSize: 12, color: color),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -387,7 +399,8 @@ class _QuickStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
+    return SizedBox(
+      width: 120,
       child: Card(
         elevation: 0,
         shape: RoundedRectangleBorder(
